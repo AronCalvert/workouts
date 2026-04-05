@@ -32,14 +32,14 @@ def _format_set_detail(line: SessionPerformedLine) -> str:
 class _WorkoutStep:
     exercise: ExercisePlan
     set_plan: SetPlan
-    rest_after: int        # seconds; 0 = go directly to next step (superset partner)
-    group_index: int       # 0-indexed position of this group in the workout
-    total_groups: int      # total number of non-empty groups
-    round_number: int      # 1-indexed round/set number within this group
-    total_rounds: int      # total rounds for this group
-    in_superset: bool      # True when part of a superset
-    superset_pos: int      # 1-indexed position within superset (1 for solo)
-    superset_size: int     # total exercises in superset (1 for solo)
+    rest_after: int  # seconds; 0 = go directly to next step (superset partner)
+    group_index: int  # 0-indexed position of this group in the workout
+    total_groups: int  # total number of non-empty groups
+    round_number: int  # 1-indexed round/set number within this group
+    total_rounds: int  # total rounds for this group
+    in_superset: bool  # True when part of a superset
+    superset_pos: int  # 1-indexed position within superset (1 for solo)
+    superset_size: int  # total exercises in superset (1 for solo)
 
 
 def _build_steps(plan: WorkoutPlan) -> list[_WorkoutStep]:
@@ -52,13 +52,17 @@ def _build_steps(plan: WorkoutPlan) -> list[_WorkoutStep]:
             ordered_groups.append([ex])
         elif ex.superset_group not in seen_groups:
             seen_groups.add(ex.superset_group)
-            cluster = [e for e in plan.exercises if e.superset_group == ex.superset_group]
+            cluster = [
+                e for e in plan.exercises if e.superset_group == ex.superset_group
+            ]
             ordered_groups.append(cluster)
 
     # Keep only groups that have at least one set
     non_empty = [
-        g for g in ordered_groups
-        if max((len(plan.sets_by_exercise_id.get(ex.id, [])) for ex in g), default=0) > 0
+        g
+        for g in ordered_groups
+        if max((len(plan.sets_by_exercise_id.get(ex.id, [])) for ex in g), default=0)
+        > 0
     ]
 
     total_groups = len(non_empty)
@@ -80,7 +84,7 @@ def _build_steps(plan: WorkoutPlan) -> list[_WorkoutStep]:
                     round_entries.append((ex, ex_sets[round_idx], ex_pos))
 
             for i, (ex, s, ex_pos) in enumerate(round_entries):
-                is_last_in_round = (i == len(round_entries) - 1)
+                is_last_in_round = i == len(round_entries) - 1
                 rest = group_rest if is_last_in_round else 0
                 steps.append(
                     _WorkoutStep(
@@ -116,7 +120,9 @@ class WorkoutRunPage(Adw.NavigationPage):
         "finished": (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
-    def __init__(self, *, db: Database, plan: WorkoutPlan, session_id: int, prefs: Preferences) -> None:
+    def __init__(
+        self, *, db: Database, plan: WorkoutPlan, session_id: int, prefs: Preferences
+    ) -> None:
         super().__init__(title="In Progress")
         self.set_can_pop(False)
         self._db = db
@@ -128,8 +134,9 @@ class WorkoutRunPage(Adw.NavigationPage):
         self._step_index = 0
         self._reps_row: Adw.SpinRow | None = None
         self._weight_row: Adw.SpinRow | None = None
+        # Maps exercise_id → (reps, weight_kg) from the last saved set of that exercise
+        self._last_logged: dict[int, tuple[int, float | None]] = {}
 
-        # ── Header ──────────────────────────────────────────────────────────
         header = Adw.HeaderBar()
 
         header_title_label = Gtk.Label(label=plan.workout.name)
@@ -143,7 +150,6 @@ class WorkoutRunPage(Adw.NavigationPage):
         header.pack_start(finish_btn)
         self._finish_btn = finish_btn
 
-        # ── Scroll + clamp ───────────────────────────────────────────────────
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_vexpand(True)
@@ -157,7 +163,6 @@ class WorkoutRunPage(Adw.NavigationPage):
         clamp.set_child(outer)
         scroll.set_child(clamp)
 
-        # ── State: active set ────────────────────────────────────────────────
         self._active_section = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
 
         name_block = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
@@ -205,7 +210,6 @@ class WorkoutRunPage(Adw.NavigationPage):
         self._active_section.append(active_btns)
         outer.append(self._active_section)
 
-        # ── State: resting ───────────────────────────────────────────────────
         self._rest_section = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
         self._rest_section.set_visible(False)
 
@@ -233,8 +237,9 @@ class WorkoutRunPage(Adw.NavigationPage):
 
         outer.append(self._rest_section)
 
-        # ── State: complete ──────────────────────────────────────────────────
-        self._complete_section = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        self._complete_section = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=18
+        )
         self._complete_section.set_visible(False)
 
         complete_header = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -257,7 +262,9 @@ class WorkoutRunPage(Adw.NavigationPage):
 
         self._complete_section.append(complete_header)
 
-        self._summary_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        self._summary_container = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=18
+        )
         self._complete_section.append(self._summary_container)
 
         done_btn = Gtk.Button(label="Done")
@@ -270,7 +277,6 @@ class WorkoutRunPage(Adw.NavigationPage):
 
         outer.append(self._complete_section)
 
-        # ── Assemble ─────────────────────────────────────────────────────────
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(header)
         toolbar.set_content(scroll)
@@ -278,13 +284,9 @@ class WorkoutRunPage(Adw.NavigationPage):
 
         self._render_current()
 
-    # ── Helpers ──────────────────────────────────────────────────────────────
-
     def _show_section(self, section: Gtk.Widget) -> None:
         for s in (self._active_section, self._rest_section, self._complete_section):
             s.set_visible(s is section)
-
-    # ── Render ───────────────────────────────────────────────────────────────
 
     def _render_current(self) -> None:
         clear_container(self._set_list)
@@ -325,19 +327,28 @@ class WorkoutRunPage(Adw.NavigationPage):
             row.set_subtitle(f"{seconds} seconds")
             self._set_list.append(row)
         else:
+            last = self._last_logged.get(ex.id)
+            default_reps = last[0] if last is not None else (cur_set.target_reps or 0)
+            default_weight_kg = last[1] if last is not None else (cur_set.target_weight_kg or 0.0)
+
             reps_adj = Gtk.Adjustment(
-                value=float(cur_set.target_reps or 0), lower=0, upper=999, step_increment=1
+                value=float(default_reps),
+                lower=0,
+                upper=999,
+                step_increment=1,
             )
             reps = Adw.SpinRow(title="Reps completed", adjustment=reps_adj, digits=0)
 
             weight_adj = Gtk.Adjustment(
-                value=self._prefs.kg_to_display(float(cur_set.target_weight_kg or 0.0)),
+                value=self._prefs.kg_to_display(float(default_weight_kg)),
                 lower=0.0,
                 upper=self._prefs.weight_max,
                 step_increment=self._prefs.weight_step,
             )
             weight = Adw.SpinRow(
-                title=f"Weight ({self._prefs.weight_label})", adjustment=weight_adj, digits=1
+                title=f"Weight ({self._prefs.weight_label})",
+                adjustment=weight_adj,
+                digits=1,
             )
             weight.set_subtitle("Use 0 for bodyweight")
             weight.set_subtitle_lines(2)
@@ -397,8 +408,6 @@ class WorkoutRunPage(Adw.NavigationPage):
 
             self._summary_container.append(group_box)
 
-    # ── Signal handlers ──────────────────────────────────────────────────────
-
     def _on_complete_clicked(self, _btn: Gtk.Button) -> None:
         if self._step_index >= len(self._steps):
             return
@@ -418,6 +427,7 @@ class WorkoutRunPage(Adw.NavigationPage):
             reps = int(self._reps_row.get_value())
             w = float(self._weight_row.get_value())
             weight = None if w <= 0.0 else self._prefs.display_to_kg(w)
+            self._last_logged[ex.id] = (reps, weight)
 
         self._db.set_performed_set(
             session_id=self._session_id,

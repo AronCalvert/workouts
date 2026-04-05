@@ -162,7 +162,11 @@ class WorkoutDetailPage(Adw.NavigationPage):
             row.add_suffix(del_btn)
 
             if ex.exercise_type == "timed" and ex.timed_seconds is not None:
-                parts = [f"{len(sets)} set(s)", f"{ex.timed_seconds}s hold", f"rest {ex.rest_seconds}s"]
+                parts = [
+                    f"{len(sets)} set(s)",
+                    f"{ex.timed_seconds}s hold",
+                    f"rest {ex.rest_seconds}s",
+                ]
             else:
                 first = sets[0] if sets else None
                 parts = [f"{len(sets)} set(s)"]
@@ -179,7 +183,11 @@ class WorkoutDetailPage(Adw.NavigationPage):
                 parts.append(f"rest {ex.rest_seconds}s")
             if ex.superset_group is not None:
                 partner = next(
-                    (e for e in plan.exercises if e.id != ex.id and e.superset_group == ex.superset_group),
+                    (
+                        e
+                        for e in plan.exercises
+                        if e.id != ex.id and e.superset_group == ex.superset_group
+                    ),
                     None,
                 )
                 if partner is not None:
@@ -361,7 +369,6 @@ class WorkoutDetailPage(Adw.NavigationPage):
             else 45,
         )
 
-        # Build superset partner dropdown
         other_exercises = [ex for ex in self._plan.exercises if ex.id != exercise_id]
         partner_ids: list[int | None] = [None]
         superset_model = Gtk.StringList()
@@ -427,10 +434,11 @@ class WorkoutDetailPage(Adw.NavigationPage):
                 self._show_error(str(exc))
                 return
 
-            # Handle superset pairing changes
             if superset_dd is not None:
                 new_idx = superset_dd.get_selected()
-                new_partner_id = partner_ids[new_idx] if new_idx < len(partner_ids) else None
+                new_partner_id = (
+                    partner_ids[new_idx] if new_idx < len(partner_ids) else None
+                )
                 old_partner_id = (
                     partner_ids[current_partner_idx]
                     if current_partner_idx < len(partner_ids)
@@ -438,11 +446,16 @@ class WorkoutDetailPage(Adw.NavigationPage):
                 )
                 if new_partner_id != old_partner_id:
                     if current_group is not None:
-                        self._db.unlink_exercise_from_superset(self._workout_id, exercise_id)
+                        self._db.unlink_exercise_from_superset(
+                            self._workout_id, exercise_id
+                        )
                     if new_partner_id is not None:
-                        # Unlink new partner from any existing superset first
                         new_partner_ex = next(
-                            (ex for ex in self._plan.exercises if ex.id == new_partner_id),
+                            (
+                                ex
+                                for ex in self._plan.exercises
+                                if ex.id == new_partner_id
+                            ),
                             None,
                         )
                         if new_partner_ex and new_partner_ex.superset_group is not None:

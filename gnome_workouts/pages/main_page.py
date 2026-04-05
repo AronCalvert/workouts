@@ -7,7 +7,7 @@ gi.require_version("Gtk", "4.0")
 
 from gi.repository import Adw, GObject, Gtk
 
-from .progress_page import ProgressPage
+from .progress_page import HistoryPage
 from ..ui_utils import *
 
 
@@ -31,11 +31,12 @@ class MainPage(Adw.NavigationPage):
         self._stack_switcher.set_hexpand(True)
         self._stack_switcher.set_halign(Gtk.Align.CENTER)
 
+        self._history_page = HistoryPage(app)
         self._stack.add_titled_with_icon(
             self._build_workouts_view(), "workouts", "Workouts", "view-list-symbolic"
         )
         self._stack.add_titled_with_icon(
-            ProgressPage(), "progress", "Progress", "document-open-recent-symbolic"
+            self._history_page, "history", "History", "document-open-recent-symbolic"
         )
 
         header = Adw.HeaderBar()
@@ -101,6 +102,9 @@ class MainPage(Adw.NavigationPage):
         return clamp
 
     def refresh(self) -> None:
+        if hasattr(self, "_history_page"):
+            self._history_page.refresh()
+
         clear_container(self._list)
 
         workouts = self.db.list_workouts()

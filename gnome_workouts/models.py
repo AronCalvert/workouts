@@ -40,6 +40,15 @@ class WorkoutPlan:
 
 
 @dataclass(frozen=True, slots=True)
+class SessionInfo:
+    """Summary of a finished session used by the history calendar."""
+
+    session_id: int
+    workout_name: str
+    started_at: str  # raw DB string
+
+
+@dataclass(frozen=True, slots=True)
 class SessionPerformedLine:
     """One logged set row for session summary."""
 

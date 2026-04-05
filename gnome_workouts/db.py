@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .models import (
     ExercisePlan,
+    SessionInfo,
     SessionPerformedLine,
     SetPlan,
     WorkoutPlan,
@@ -450,12 +451,53 @@ class Database:
                 (workout_id, workout_id),
             )
 
+    def get_sessions_for_month(self, year: int, month: int) -> list[int]:
+        """Return day-of-month numbers (1–31) that have at least one finished session."""
+        month_str = f"{year:04d}-{month:02d}"
+        cur = self._conn.execute(
+            """
+            SELECT DISTINCT CAST(strftime('%d', started_at) AS INTEGER) AS day
+            FROM workout_sessions
+            WHERE started_at LIKE ? AND finished_at IS NOT NULL
+            """,
+            (f"{month_str}%",),
+        )
+        return [int(r["day"]) for r in cur.fetchall()]
+
+    def get_sessions_for_date(self, year: int, month: int, day: int) -> list[SessionInfo]:
+        """Return finished sessions for a specific calendar date, oldest first."""
+        date_str = f"{year:04d}-{month:02d}-{day:02d}"
+        cur = self._conn.execute(
+            """
+            SELECT ws.id, w.name AS workout_name, ws.started_at
+            FROM workout_sessions ws
+            JOIN workouts w ON w.id = ws.workout_id
+            WHERE ws.started_at LIKE ? AND ws.finished_at IS NOT NULL
+            ORDER BY ws.started_at ASC
+            """,
+            (f"{date_str}%",),
+        )
+        return [
+            SessionInfo(
+                session_id=int(r["id"]),
+                workout_name=str(r["workout_name"]),
+                started_at=str(r["started_at"]),
+            )
+            for r in cur.fetchall()
+        ]
+
     def start_session(self, workout_id: int) -> int:
         with self._conn:
             cur = self._conn.execute(
                 "INSERT INTO workout_sessions(workout_id) VALUES (?)", (workout_id,)
             )
         return int(cur.lastrowid)
+
+    def delete_session(self, session_id: int) -> None:
+        with self._conn:
+            self._conn.execute(
+                "DELETE FROM workout_sessions WHERE id = ?", (session_id,)
+            )
 
     def finish_session(self, session_id: int) -> None:
         with self._conn:
