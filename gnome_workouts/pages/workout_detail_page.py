@@ -7,7 +7,7 @@ import gi
 gi.require_version("Adw", "1")
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Adw, GObject, Gtk
+from gi.repository import Adw, Gdk, GObject, Gtk
 
 from ..models import SetPlan
 from ..ui_utils import *
@@ -101,7 +101,6 @@ class WorkoutDetailPage(Adw.NavigationPage):
             return
 
         self._exercises_stack.set_visible_child_name("list")
-        prefs = self._app.prefs
         total = len(plan.exercises)
 
         list_box = create_boxed_listbox()
@@ -115,38 +114,35 @@ class WorkoutDetailPage(Adw.NavigationPage):
                 "activated", lambda _r, eid=ex.id: self._open_edit_exercise_dialog(eid)
             )
 
-            if total > 1:
-                up_btn = Gtk.Button()
-                up_btn.set_icon_name("go-up-symbolic")
-                up_btn.set_valign(Gtk.Align.CENTER)
-                up_btn.set_sensitive(i > 0)
-                if i > 0:
-                    prev_id = plan.exercises[i - 1].id
-                    up_btn.connect(
-                        "clicked",
-                        lambda _b, a=ex.id, b=prev_id: self._move_exercise(a, b),
-                    )
-                style_header_icon_button(
-                    up_btn, tooltip="Move up", accessible_name=f"Move {ex.name} up"
-                )
-                row.add_suffix(up_btn)
+            handle = Gtk.Image.new_from_icon_name("list-drag-handle-symbolic")
+            handle.set_valign(Gtk.Align.CENTER)
+            handle.add_css_class("dim-label")
+            row.add_prefix(handle)
 
-                down_btn = Gtk.Button()
-                down_btn.set_icon_name("go-down-symbolic")
-                down_btn.set_valign(Gtk.Align.CENTER)
-                down_btn.set_sensitive(i < total - 1)
-                if i < total - 1:
-                    next_id = plan.exercises[i + 1].id
-                    down_btn.connect(
-                        "clicked",
-                        lambda _b, a=ex.id, b=next_id: self._move_exercise(a, b),
-                    )
-                style_header_icon_button(
-                    down_btn,
-                    tooltip="Move down",
-                    accessible_name=f"Move {ex.name} down",
-                )
-                row.add_suffix(down_btn)
+            drag_src = Gtk.DragSource.new()
+            drag_src.set_actions(Gdk.DragAction.MOVE)
+            drag_src.connect(
+                "prepare",
+                lambda _s, _x, _y, eid=ex.id: Gdk.ContentProvider.new_for_value(
+                    str(eid)
+                ),
+            )
+            drag_src.connect(
+                "drag-begin",
+                lambda src, _drag, r=row: src.set_icon(
+                    Gtk.WidgetPaintable.new(r), 0, 0
+                ),
+            )
+            handle.add_controller(drag_src)
+
+            drop_tgt = Gtk.DropTarget.new(GObject.TYPE_STRING, Gdk.DragAction.MOVE)
+            drop_tgt.connect(
+                "drop",
+                lambda _t, value, _x, _y, tidx=i: self._on_exercise_drop(
+                    int(value), tidx
+                ),
+            )
+            row.add_controller(drop_tgt)
 
             del_btn = Gtk.Button()
             del_btn.set_icon_name("user-trash-symbolic")
@@ -161,49 +157,18 @@ class WorkoutDetailPage(Adw.NavigationPage):
             )
             row.add_suffix(del_btn)
 
-            if ex.exercise_type == "timed" and ex.timed_seconds is not None:
-                parts = [
-                    f"{len(sets)} set(s)",
-                    f"{ex.timed_seconds}s hold",
-                    f"rest {ex.rest_seconds}s",
-                ]
-            else:
-                parts = [f"{len(sets)} set(s)"]
-                reps_vals = [s.target_reps for s in sets if s.target_reps is not None]
-                kg_vals = [
-                    s.target_weight_kg
-                    for s in sets
-                    if s.target_weight_kg is not None and s.target_weight_kg > 0
-                ]
-                if reps_vals:
-                    if len(set(reps_vals)) == 1:
-                        parts.append(f"{reps_vals[0]} reps")
-                    else:
-                        parts.append(f"{min(reps_vals)}\u2013{max(reps_vals)} reps")
-                if kg_vals:
-                    if len(set(kg_vals)) == 1:
-                        parts.append(
-                            f"{prefs.kg_to_display(kg_vals[0]):g} {prefs.weight_label}"
-                        )
-                    else:
-                        lo = prefs.kg_to_display(min(kg_vals))
-                        hi = prefs.kg_to_display(max(kg_vals))
-                        parts.append(f"{lo:g}\u2013{hi:g} {prefs.weight_label}")
-                parts.append(f"rest {ex.rest_seconds}s")
+            n_sets = len(sets)
+            parts = [f"{n_sets} {'set' if n_sets == 1 else 'sets'}"]
             if ex.superset_group is not None:
-                partner = next(
-                    (
-                        e
-                        for e in plan.exercises
-                        if e.id != ex.id and e.superset_group == ex.superset_group
-                    ),
-                    None,
-                )
-                if partner is not None:
-                    parts.append(f"superset with {partner.name}")
+                partners = [
+                    e
+                    for e in plan.exercises
+                    if e.id != ex.id and e.superset_group == ex.superset_group
+                ]
+                if partners:
+                    names = ", ".join(p.name for p in partners)
+                    parts.append(f"Superset with {names}")
             row.set_subtitle(" \u2022 ".join(parts))
-
-            row.set_subtitle_lines(2)
             list_box.append(row)
 
         self._body.append(list_box)
@@ -323,7 +288,7 @@ class WorkoutDetailPage(Adw.NavigationPage):
 
         def _add_set_row(reps: int = 10, weight: float = 0.0) -> None:
             n = len(set_adjs) + 1
-            r_adj = Gtk.Adjustment(value=reps, lower=0, upper=999, step_increment=1)
+            r_adj = Gtk.Adjustment(value=reps, lower=1, upper=999, step_increment=1)
             w_adj = Gtk.Adjustment(
                 value=weight,
                 lower=0.0,
@@ -426,6 +391,17 @@ class WorkoutDetailPage(Adw.NavigationPage):
             return
         self._reload()
 
+    def _on_exercise_drop(self, dragged_id: int, target_index: int) -> bool:
+        try:
+            self._db.move_exercise_to_position(
+                self._workout_id, dragged_id, target_index
+            )
+        except ValueError as exc:
+            self._show_error(str(exc))
+            return False
+        self._reload()
+        return True
+
     def _on_remove_exercise_clicked(self, exercise_id: int) -> None:
         dialog = Adw.AlertDialog()
         dialog.set_heading("Remove Exercise?")
@@ -469,28 +445,65 @@ class WorkoutDetailPage(Adw.NavigationPage):
         )
 
         other_exercises = [ex for ex in self._plan.exercises if ex.id != exercise_id]
-        partner_ids: list[int | None] = [None]
-        superset_model = Gtk.StringList()
-        superset_model.append("None")
         current_group = exercise.superset_group
-        current_partner_idx = 0
-        for i, other in enumerate(other_exercises):
-            superset_model.append(other.name)
-            partner_ids.append(other.id)
-            if current_group is not None and other.superset_group == current_group:
-                current_partner_idx = i + 1
+        current_superset_ids = (
+            {
+                ex.id
+                for ex in self._plan.exercises
+                if ex.id != exercise_id and ex.superset_group == current_group
+            }
+            if current_group is not None
+            else set()
+        )
 
-        superset_dd: Gtk.DropDown | None = None
+        superset_checks: list[tuple[int, Gtk.CheckButton]] = []
         if other_exercises:
-            superset_dd = Gtk.DropDown(model=superset_model)
-            superset_dd.set_selected(current_partner_idx)
-            superset_dd.set_hexpand(True)
-            superset_dd.set_valign(Gtk.Align.CENTER)
-            set_accessible_label(superset_dd, "Superset partner exercise")
+            ss_inner_list = Gtk.ListBox()
+            ss_inner_list.add_css_class("boxed-list")
+            ss_inner_list.set_selection_mode(Gtk.SelectionMode.NONE)
+            ss_inner_list.set_margin_top(6)
+            ss_inner_list.set_margin_bottom(6)
+            ss_inner_list.set_margin_start(6)
+            ss_inner_list.set_margin_end(6)
+            for other in other_exercises:
+                cb = Gtk.CheckButton()
+                cb.set_active(other.id in current_superset_ids)
+                cb.set_valign(Gtk.Align.CENTER)
+                inner_row = Adw.ActionRow(title=other.name)
+                inner_row.set_activatable_widget(cb)
+                inner_row.add_suffix(cb)
+                ss_inner_list.append(inner_row)
+                superset_checks.append((other.id, cb))
+
+            ss_scroll = Gtk.ScrolledWindow()
+            ss_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+            ss_scroll.set_max_content_height(300)
+            ss_scroll.set_propagate_natural_height(True)
+            ss_scroll.set_child(ss_inner_list)
+
+            ss_popover = Gtk.Popover()
+            ss_popover.set_child(ss_scroll)
+            ss_popover.set_size_request(260, -1)
+
+            def _ss_summary() -> str:
+                checked = [eid for eid, cb in superset_checks if cb.get_active()]
+                if not checked:
+                    return "None"
+                n = len(checked)
+                return f"{n} exercise{'s' if n > 1 else ''}"
+
+            ss_btn_label = Gtk.Label(label=_ss_summary())
+            ss_menu_btn = Gtk.MenuButton()
+            ss_menu_btn.set_child(ss_btn_label)
+            ss_menu_btn.set_popover(ss_popover)
+            ss_menu_btn.set_valign(Gtk.Align.CENTER)
+            ss_menu_btn.add_css_class("flat")
+
+            for _eid, cb in superset_checks:
+                cb.connect("toggled", lambda *_: ss_btn_label.set_label(_ss_summary()))
+
             ss_row = Adw.ActionRow(title="Superset With")
-            ss_row.set_subtitle("Run back-to-back with no rest in between")
-            ss_row.set_subtitle_lines(2)
-            ss_row.add_suffix(superset_dd)
+            ss_row.add_suffix(ss_menu_btn)
             f.form.append(ss_row)
 
         dialog = Adw.AlertDialog()
@@ -540,36 +553,27 @@ class WorkoutDetailPage(Adw.NavigationPage):
                 self._show_error(str(exc))
                 return
 
-            if superset_dd is not None:
-                new_idx = superset_dd.get_selected()
-                new_partner_id = (
-                    partner_ids[new_idx] if new_idx < len(partner_ids) else None
-                )
-                old_partner_id = (
-                    partner_ids[current_partner_idx]
-                    if current_partner_idx < len(partner_ids)
-                    else None
-                )
-                if new_partner_id != old_partner_id:
+            if superset_checks:
+                new_superset_ids = {
+                    eid for eid, cb in superset_checks if cb.get_active()
+                }
+                if new_superset_ids != current_superset_ids:
                     if current_group is not None:
                         self._db.unlink_exercise_from_superset(
                             self._workout_id, exercise_id
                         )
-                    if new_partner_id is not None:
-                        new_partner_ex = next(
-                            (
-                                ex
-                                for ex in self._plan.exercises
-                                if ex.id == new_partner_id
-                            ),
+                    for new_id in new_superset_ids:
+                        new_ex = next(
+                            (ex for ex in self._plan.exercises if ex.id == new_id),
                             None,
                         )
-                        if new_partner_ex and new_partner_ex.superset_group is not None:
+                        if new_ex and new_ex.superset_group is not None:
                             self._db.unlink_exercise_from_superset(
-                                self._workout_id, new_partner_id
+                                self._workout_id, new_id
                             )
+                    if new_superset_ids:
                         self._db.set_exercises_as_superset(
-                            self._workout_id, exercise_id, new_partner_id
+                            self._workout_id, [exercise_id] + list(new_superset_ids)
                         )
 
             self._reload()

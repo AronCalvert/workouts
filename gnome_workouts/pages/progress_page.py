@@ -113,7 +113,7 @@ class HistoryPage(Gtk.Box):
 
         session_list = create_boxed_listbox()
         for si in sessions:
-            time_str = si.started_at[11:16]
+            time_str = pydt.datetime.fromisoformat(si.started_at).strftime("%H:%M")
             row = Adw.ActionRow(title=si.workout_name, subtitle=time_str)
             row.set_activatable(True)
             row.connect("activated", lambda _r, s=si: self._open_session_dialog(s))
@@ -136,7 +136,7 @@ class HistoryPage(Gtk.Box):
         dialog = Adw.AlertDialog()
         dialog.set_heading("Delete Session?")
         dialog.set_body(
-            f"Remove the \u201c{si.workout_name}\u201d session at {si.started_at[11:16]}? "
+            f"Remove the \u201c{si.workout_name}\u201d session at {pydt.datetime.fromisoformat(si.started_at).strftime("%H:%M")}? "
             "This cannot be undone."
         )
         dialog.add_response("cancel", "Cancel")
@@ -157,7 +157,7 @@ class HistoryPage(Gtk.Box):
 
     def _open_session_dialog(self, si: SessionInfo) -> None:
         lines = self._db.get_session_performed_lines(si.session_id)
-        time_str = si.started_at[11:16]
+        time_str = pydt.datetime.fromisoformat(si.started_at).strftime("%H:%M")
 
         content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         set_margins(content_box, top=18, bottom=18, start=18, end=18)

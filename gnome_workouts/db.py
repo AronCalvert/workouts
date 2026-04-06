@@ -133,10 +133,25 @@ class Database:
 
     def list_workouts(self) -> list[WorkoutSummary]:
         cur = self._conn.execute(
-            "SELECT id, name FROM workouts ORDER BY created_at DESC, id DESC"
+            """
+            SELECT w.id, w.name,
+                   COUNT(DISTINCT e.id) AS exercise_count,
+                   COUNT(s.id)          AS set_count
+            FROM workouts w
+            LEFT JOIN exercises e ON e.workout_id = w.id
+            LEFT JOIN sets s      ON s.exercise_id = e.id
+            GROUP BY w.id
+            ORDER BY w.created_at DESC, w.id DESC
+            """
         )
         return [
-            WorkoutSummary(id=int(r["id"]), name=str(r["name"])) for r in cur.fetchall()
+            WorkoutSummary(
+                id=int(r["id"]),
+                name=str(r["name"]),
+                exercise_count=int(r["exercise_count"]),
+                set_count=int(r["set_count"]),
+            )
+            for r in cur.fetchall()
         ]
 
     def get_workout_plan(self, workout_id: int) -> WorkoutPlan | None:
@@ -282,12 +297,37 @@ class Database:
                 "INSERT INTO workouts(name) VALUES (?)", (new_name,)
             )
             new_workout_id = int(cur.lastrowid)
+
+            # Remap old superset group IDs to fresh ones to avoid collisions
+            old_groups = sorted(
+                {
+                    ex.superset_group
+                    for ex in plan.exercises
+                    if ex.superset_group is not None
+                }
+            )
+            group_id_map: dict[int, int] = {}
+            if old_groups:
+                max_group = int(
+                    self._conn.execute(
+                        "SELECT COALESCE(MAX(superset_group), 0) AS m FROM exercises"
+                    ).fetchone()["m"]
+                )
+                for old_gid in old_groups:
+                    max_group += 1
+                    group_id_map[old_gid] = max_group
+
             ex_id_map: dict[int, int] = {}
             for ex in plan.exercises:
+                new_group = (
+                    group_id_map[ex.superset_group]
+                    if ex.superset_group is not None
+                    else None
+                )
                 new_ex_cur = self._conn.execute(
                     "INSERT INTO exercises"
-                    "(workout_id, name, exercise_type, order_index, rest_seconds, timed_seconds)"
-                    " VALUES (?, ?, ?, ?, ?, ?)",
+                    " (workout_id, name, exercise_type, order_index, rest_seconds, timed_seconds, superset_group)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (
                         new_workout_id,
                         ex.name,
@@ -295,9 +335,11 @@ class Database:
                         ex.order_index,
                         ex.rest_seconds,
                         ex.timed_seconds,
+                        new_group,
                     ),
                 )
                 ex_id_map[ex.id] = int(new_ex_cur.lastrowid)
+
             for ex in plan.exercises:
                 new_ex_id = ex_id_map[ex.id]
                 for s in plan.sets_by_exercise_id.get(ex.id, []):
@@ -305,11 +347,6 @@ class Database:
                         "INSERT INTO sets(exercise_id, order_index, target_reps, target_weight_kg)"
                         " VALUES (?, ?, ?, ?)",
                         (new_ex_id, s.order_index, s.target_reps, s.target_weight_kg),
-                    )
-                if ex.superset_group is not None:
-                    self._conn.execute(
-                        "UPDATE exercises SET superset_group = ? WHERE id = ?",
-                        (ex.superset_group, new_ex_id),
                     )
         return new_workout_id
 
@@ -387,6 +424,37 @@ class Database:
             for i, (tr, tw) in enumerate(validated_configs):
                 self._insert_set(exercise_id, i, target_reps=tr, target_weight_kg=tw)
 
+    def move_exercise_to_position(
+        self, workout_id: int, exercise_id: int, target_index: int
+    ) -> None:
+
+        rows = self._conn.execute(
+            "SELECT id, superset_group FROM exercises WHERE workout_id = ? ORDER BY order_index ASC",
+            (workout_id,),
+        ).fetchall()
+        ids = [int(r["id"]) for r in rows]
+        if exercise_id not in ids:
+            raise ValueError("Exercise not found in workout")
+
+        sg_map = {int(r["id"]): r["superset_group"] for r in rows}
+        dragged_group = sg_map[exercise_id]
+        if dragged_group is not None:
+            cluster = [eid for eid in ids if sg_map[eid] == dragged_group]
+        else:
+            cluster = [exercise_id]
+
+        for eid in cluster:
+            ids.remove(eid)
+        target_index = max(0, min(target_index, len(ids)))
+        for offset, eid in enumerate(cluster):
+            ids.insert(target_index + offset, eid)
+
+        with self._conn:
+            for i, eid in enumerate(ids):
+                self._conn.execute(
+                    "UPDATE exercises SET order_index = ? WHERE id = ?", (i, eid)
+                )
+
     def swap_exercise_order(
         self, workout_id: int, exercise_id_a: int, exercise_id_b: int
     ) -> None:
@@ -453,34 +521,38 @@ class Database:
                 )
 
     def set_exercises_as_superset(
-        self, workout_id: int, exercise_id_a: int, exercise_id_b: int
+        self, workout_id: int, exercise_ids: list[int]
     ) -> None:
-        """Link two exercises as a superset pair."""
-        row_a = self._conn.execute(
-            "SELECT superset_group FROM exercises WHERE id = ? AND workout_id = ?",
-            (exercise_id_a, workout_id),
-        ).fetchone()
-        row_b = self._conn.execute(
-            "SELECT superset_group FROM exercises WHERE id = ? AND workout_id = ?",
-            (exercise_id_b, workout_id),
-        ).fetchone()
-        if row_a is None or row_b is None:
-            raise ValueError("Exercise not found in this workout")
-        existing_group = (
-            row_a["superset_group"]
-            if row_a["superset_group"] is not None
-            else row_b["superset_group"]
-        )
+        """Link two or more exercises as a superset group."""
+        if len(exercise_ids) < 2:
+            raise ValueError("Need at least 2 exercises for a superset")
+        for eid in exercise_ids:
+            row = self._conn.execute(
+                "SELECT superset_group FROM exercises WHERE id = ? AND workout_id = ?",
+                (eid, workout_id),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Exercise not found in this workout")
+        existing_group: int | None = None
+        for eid in exercise_ids:
+            row = self._conn.execute(
+                "SELECT superset_group FROM exercises WHERE id = ? AND workout_id = ?",
+                (eid, workout_id),
+            ).fetchone()
+            if row["superset_group"] is not None:
+                existing_group = int(row["superset_group"])
+                break
         if existing_group is None:
             max_group = self._conn.execute(
                 "SELECT COALESCE(MAX(superset_group), 0) AS m FROM exercises WHERE workout_id = ?",
                 (workout_id,),
             ).fetchone()["m"]
             existing_group = int(max_group) + 1
+        placeholders = ",".join("?" * len(exercise_ids))
         with self._conn:
             self._conn.execute(
-                "UPDATE exercises SET superset_group = ? WHERE id IN (?, ?) AND workout_id = ?",
-                (existing_group, exercise_id_a, exercise_id_b, workout_id),
+                f"UPDATE exercises SET superset_group = ? WHERE id IN ({placeholders}) AND workout_id = ?",
+                (existing_group, *exercise_ids, workout_id),
             )
 
     def unlink_exercise_from_superset(self, workout_id: int, exercise_id: int) -> None:

@@ -85,7 +85,12 @@ def _build_steps(plan: WorkoutPlan) -> list[_WorkoutStep]:
 
             for i, (ex, s, ex_pos) in enumerate(round_entries):
                 is_last_in_round = i == len(round_entries) - 1
-                rest = group_rest if is_last_in_round else 0
+                if not is_last_in_round:
+                    rest = 0
+                elif is_superset and len(round_entries) == 1:
+                    rest = ex.rest_seconds
+                else:
+                    rest = group_rest
                 steps.append(
                     _WorkoutStep(
                         exercise=ex,
@@ -105,15 +110,6 @@ def _build_steps(plan: WorkoutPlan) -> list[_WorkoutStep]:
 
 
 class WorkoutRunPage(Adw.NavigationPage):
-    """
-    Active workout session page.
-
-    Three mutually exclusive states:
-      - active: user fills in the current set
-      - resting: countdown between sets; inputs hidden
-      - complete: session summary
-    """
-
     __gtype_name__ = "GnomeWorkoutsWorkoutRunPage"
 
     __gsignals__ = {
@@ -134,7 +130,6 @@ class WorkoutRunPage(Adw.NavigationPage):
         self._step_index = 0
         self._reps_row: Adw.SpinRow | None = None
         self._weight_row: Adw.SpinRow | None = None
-        # Maps exercise_id → (reps, weight_kg) from the last saved set of that exercise
         self._last_logged: dict[int, tuple[int, float | None]] = {}
 
         header = Adw.HeaderBar()
@@ -329,7 +324,11 @@ class WorkoutRunPage(Adw.NavigationPage):
         else:
             last = self._last_logged.get(ex.id)
             default_reps = last[0] if last is not None else (cur_set.target_reps or 0)
-            default_weight_kg = last[1] if last is not None else (cur_set.target_weight_kg or 0.0)
+            default_weight_kg = (
+                (last[1] or 0.0)
+                if last is not None
+                else (cur_set.target_weight_kg or 0.0)
+            )
 
             reps_adj = Gtk.Adjustment(
                 value=float(default_reps),

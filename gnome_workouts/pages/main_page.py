@@ -5,7 +5,7 @@ import gi
 gi.require_version("Adw", "1")
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Adw, GObject, Gtk
+from gi.repository import Adw, Gio, GObject, Gtk
 
 from .progress_page import HistoryPage
 from ..ui_utils import *
@@ -51,7 +51,7 @@ class MainPage(Adw.NavigationPage):
         header.pack_start(add_btn)
 
         prefs_btn = create_header_button(
-            "emblem-system-symbolic",
+            "open-menu-symbolic",
             tooltip="Preferences",
             accessible_name="Preferences",
         )
@@ -109,7 +109,9 @@ class MainPage(Adw.NavigationPage):
 
         workouts = self.db.list_workouts()
         for w in workouts:
-            row = Adw.ActionRow(title=w.name)
+            ex_label = f"{w.exercise_count} exercise{'s' if w.exercise_count != 1 else ''}"
+            set_label = f"{w.set_count} set{'s' if w.set_count != 1 else ''}"
+            row = Adw.ActionRow(title=w.name, subtitle=f"{ex_label} \u2022 {set_label}")
             gesture = Gtk.GestureClick()
             gesture.connect(
                 "released",
@@ -117,53 +119,42 @@ class MainPage(Adw.NavigationPage):
             )
             row.add_controller(gesture)
 
-            rename_btn = Gtk.Button()
-            rename_btn.set_icon_name("document-edit-symbolic")
-            rename_btn.set_valign(Gtk.Align.CENTER)
-            rename_btn.connect(
-                "clicked",
-                lambda _btn, workout_id=w.id, workout_name=w.name: (
-                    self._show_rename_dialog(workout_id, workout_name)
-                ),
+            action_group = Gio.SimpleActionGroup()
+            rename_action = Gio.SimpleAction.new("rename", None)
+            rename_action.connect(
+                "activate",
+                lambda *_, wid=w.id, wname=w.name: self._show_rename_dialog(wid, wname),
             )
-            style_header_icon_button(
-                rename_btn,
-                tooltip=f"Rename \u2018{w.name}\u2019",
-                accessible_name=f"Rename {w.name}",
+            action_group.add_action(rename_action)
+            duplicate_action = Gio.SimpleAction.new("duplicate", None)
+            duplicate_action.connect(
+                "activate",
+                lambda *_, wid=w.id, wname=w.name: self._show_duplicate_dialog(wid, wname),
             )
-            row.add_suffix(rename_btn)
+            action_group.add_action(duplicate_action)
+            delete_action = Gio.SimpleAction.new("delete", None)
+            delete_action.connect(
+                "activate",
+                lambda *_, wid=w.id, wname=w.name: self._confirm_delete_workout(wid, wname),
+            )
+            action_group.add_action(delete_action)
+            row.insert_action_group("workout", action_group)
 
-            duplicate_btn = Gtk.Button()
-            duplicate_btn.set_icon_name("edit-copy-symbolic")
-            duplicate_btn.set_valign(Gtk.Align.CENTER)
-            duplicate_btn.connect(
-                "clicked",
-                lambda _btn, workout_id=w.id, workout_name=w.name: (
-                    self._show_duplicate_dialog(workout_id, workout_name)
-                ),
-            )
-            style_header_icon_button(
-                duplicate_btn,
-                tooltip=f"Duplicate \u2018{w.name}\u2019",
-                accessible_name=f"Duplicate {w.name}",
-            )
-            row.add_suffix(duplicate_btn)
+            menu = Gio.Menu()
+            menu.append("Rename", "workout.rename")
+            menu.append("Duplicate", "workout.duplicate")
+            menu.append("Delete", "workout.delete")
 
-            delete_btn = Gtk.Button()
-            delete_btn.set_icon_name("user-trash-symbolic")
-            delete_btn.set_valign(Gtk.Align.CENTER)
-            delete_btn.connect(
-                "clicked",
-                lambda _btn, workout_id=w.id, workout_name=w.name: (
-                    self._confirm_delete_workout(workout_id, workout_name)
-                ),
-            )
+            cog_btn = Gtk.MenuButton()
+            cog_btn.set_icon_name("emblem-system-symbolic")
+            cog_btn.set_menu_model(menu)
+            cog_btn.set_valign(Gtk.Align.CENTER)
             style_header_icon_button(
-                delete_btn,
-                tooltip=f"Delete workout \u2018{w.name}\u2019",
-                accessible_name=f"Delete {w.name}",
+                cog_btn,
+                tooltip=f"Options for \u2018{w.name}\u2019",
+                accessible_name=f"Options for {w.name}",
             )
-            row.add_suffix(delete_btn)
+            row.add_suffix(cog_btn)
             self._list.append(row)
 
         if workouts:

@@ -10,6 +10,8 @@ ExerciseType = Literal["reps", "timed"]
 class WorkoutSummary:
     id: int
     name: str
+    exercise_count: int = 0
+    set_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)
