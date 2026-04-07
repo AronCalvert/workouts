@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.AronCalvert.Workouts</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Workouts</name>
+  <summary>Track your gym workouts</summary>
+  <description>
+    <p>
+      A workout tracker for GNOME. Log exercises, track sets and reps,
+      and review your training history.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.AronCalvert.Workouts.desktop</launchable>
+  <url type="homepage">https://github.com/AronCalvert/gnome-workouts</url>
+  <developer id="io.github.AronCalvert">
+    <name>Aron Calvert</name>
+  </developer>
+  <releases>
+    <release version="0.1.0" date="2026-04-06"/>
+  </releases>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Browse and manage your workout plans</caption>
+      <image>https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/main-window.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>View exercises and start a workout</caption>
+      <image>https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/workout-detail.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Log reps and weight for each set</caption>
+      <image>https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/workout-run.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Rest timer between sets</caption>
+      <image>https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/rest-timer.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Workout summary on completion</caption>
+      <image>https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/workout-complete.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Training history by date</caption>
+      <image>https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/history.png</image>
+    </screenshot>
+  </screenshots>
+  <branding>
+    <color type="primary" scheme_preference="light">#c0bfbc</color>
+    <color type="primary" scheme_preference="dark">#5e5c64</color>
+  </branding>
+  <content_rating type="oars-1.1"/>
+</component>

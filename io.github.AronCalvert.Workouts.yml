@@ -1,0 +1,18 @@
+app-id: io.github.AronCalvert.Workouts
+runtime: org.gnome.Platform
+runtime-version: '48'
+sdk: org.gnome.Sdk
+command: workouts
+
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+
+modules:
+  - name: workouts
+    buildsystem: meson
+    sources:
+      - type: dir
+        path: .

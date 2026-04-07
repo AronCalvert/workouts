@@ -4,3 +4,7 @@ __pycache__/
 .venv/
 *.sqlite
 *.db
+*.egg-info/
+_build/
+_flatpak_build/
+.flatpak-builder/

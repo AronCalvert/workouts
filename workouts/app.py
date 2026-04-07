@@ -14,7 +14,7 @@ from .prefs import Preferences, default_prefs_path
 from .window import MainWindow
 
 
-APP_ID = "com.aroncalvert.Workouts"
+APP_ID = "io.github.AronCalvert.Workouts"
 
 
 class WorkoutApp(Adw.Application):

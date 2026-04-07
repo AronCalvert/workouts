@@ -1,0 +1,10 @@
+#!/usr/bin/env @PYTHON@
+
+import os
+import sys
+
+sys.path.insert(1, '@pkgdatadir@')
+
+from workouts.app import main
+
+sys.exit(main())

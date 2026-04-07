@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Workouts
+Comment=Track your gym workouts
+Exec=workouts
+Icon=io.github.AronCalvert.Workouts
+Terminal=false
+Type=Application
+Categories=GTK;GNOME;Sports;Education;
+StartupNotify=true
+Keywords=workout;gym;fitness;exercise;training;weights;lifting;
