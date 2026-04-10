@@ -58,6 +58,8 @@ class HistoryPage(Gtk.Box):
         self._calendar.connect("day-selected", self._on_day_selected)
         self._calendar.connect("prev-month", self._on_month_changed)
         self._calendar.connect("next-month", self._on_month_changed)
+        self._calendar.connect("prev-year", self._on_month_changed)
+        self._calendar.connect("next-year", self._on_month_changed)
 
         cal_frame = Gtk.Frame()
         cal_frame.set_halign(Gtk.Align.CENTER)

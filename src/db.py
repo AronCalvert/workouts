@@ -274,8 +274,8 @@ class Database:
             return name, validated, None
         else:
             ts = int(timed_seconds) if timed_seconds is not None else 30
-            if ts < 1 or ts > 3600:
-                raise ValueError("Timed duration must be between 1 and 3600 seconds")
+            if ts < 1 or ts > 7200:
+                raise ValueError("Timed duration must be between 1 and 7200 seconds")
             return name, [(None, None)] * len(set_configs), ts
 
     # mutations

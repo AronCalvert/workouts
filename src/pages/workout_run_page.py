@@ -7,7 +7,7 @@ import gi
 gi.require_version("Adw", "1")
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Adw, GObject, Gtk
+from gi.repository import Adw, Gdk, GObject, Gtk
 
 from ..db import Database
 from ..models import ExercisePlan, SetPlan, WorkoutPlan, SessionPerformedLine
@@ -286,6 +286,10 @@ class WorkoutRunPage(Adw.NavigationPage):
         toolbar.set_content(scroll)
         self.set_child(toolbar)
 
+        key_ctrl = Gtk.EventControllerKey()
+        key_ctrl.connect("key-pressed", self._on_key_pressed)
+        self.add_controller(key_ctrl)
+
         self._render_current()
 
     def _show_section(self, section: Gtk.Widget) -> None:
@@ -558,6 +562,24 @@ class WorkoutRunPage(Adw.NavigationPage):
 
         dialog.connect("response", on_response)
         present_dialog(dialog, self)
+
+    def _on_key_pressed(
+        self, _ctrl: Gtk.EventControllerKey, keyval: int, _keycode: int, _state: Gdk.ModifierType
+    ) -> bool:
+        if self._active_section.get_visible():
+            if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+                if not self._hold_timer.get_visible():
+                    self._on_complete_clicked(None)
+                return True
+            if keyval in (Gdk.KEY_s, Gdk.KEY_S):
+                if not self._hold_timer.get_visible():
+                    self._on_skip_set_clicked(None)
+                return True
+        if self._rest_section.get_visible():
+            if keyval in (Gdk.KEY_r, Gdk.KEY_R, Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+                self._on_skip_rest_clicked(None)
+                return True
+        return False
 
     def _on_done_clicked(self, _btn: Gtk.Button) -> None:
         self.emit("finished")

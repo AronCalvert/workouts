@@ -287,7 +287,7 @@ class WorkoutDetailPage(Adw.NavigationPage):
         sets_row = Adw.SpinRow(title="Number of Sets", adjustment=sets_adj, digits=0)
 
         dur_adj = Gtk.Adjustment(
-            value=timed_seconds, lower=1, upper=600, step_increment=1
+            value=timed_seconds, lower=1, upper=7200, step_increment=1
         )
         timed_row = Adw.SpinRow(
             title="Hold Duration (seconds)", adjustment=dur_adj, digits=0

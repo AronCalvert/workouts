@@ -37,6 +37,13 @@ class WorkoutApp(Adw.Application):
             self._db = open_default_db(APP_ID)
         return self._db
 
+    def do_startup(self) -> None:
+        Adw.Application.do_startup(self)
+        quit_action = Gio.SimpleAction.new("quit", None)
+        quit_action.connect("activate", lambda *_: self.quit())
+        self.add_action(quit_action)
+        self.set_accels_for_action("app.quit", ["<Control>q"])
+
     def do_activate(self) -> None:
         win = self.props.active_window
         if win is None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 import gi
 
 gi.require_version("Adw", "1")
@@ -59,6 +60,7 @@ class MainPage(Adw.NavigationPage):
 
         app_menu = Gio.Menu()
         app_menu.append("Preferences", "mainpage.preferences")
+        app_menu.append("Keyboard Shortcuts", "mainpage.shortcuts")
         app_menu.append("About Workouts", "mainpage.about")
 
         menu_btn = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=app_menu)
@@ -70,10 +72,46 @@ class MainPage(Adw.NavigationPage):
         prefs_action = Gio.SimpleAction.new("preferences", None)
         prefs_action.connect("activate", lambda *_: self._show_preferences())
         page_actions.add_action(prefs_action)
+        shortcuts_action = Gio.SimpleAction.new("shortcuts", None)
+        shortcuts_action.connect("activate", lambda *_: self._show_keyboard_shortcuts())
+        page_actions.add_action(shortcuts_action)
         about_action = Gio.SimpleAction.new("about", None)
         about_action.connect("activate", lambda *_: self._show_about())
         page_actions.add_action(about_action)
+        new_workout_action = Gio.SimpleAction.new("new_workout", None)
+        new_workout_action.connect("activate", lambda *_: self._on_add_workout_clicked(None))
+        page_actions.add_action(new_workout_action)
+        switch_workouts_action = Gio.SimpleAction.new("switch_workouts", None)
+        switch_workouts_action.connect("activate", lambda *_: self._stack.set_visible_child_name("workouts"))
+        page_actions.add_action(switch_workouts_action)
+        switch_history_action = Gio.SimpleAction.new("switch_history", None)
+        switch_history_action.connect("activate", lambda *_: self._stack.set_visible_child_name("history"))
+        page_actions.add_action(switch_history_action)
         self.insert_action_group("mainpage", page_actions)
+
+        sc = Gtk.ShortcutController()
+        sc.set_scope(Gtk.ShortcutScope.MANAGED)
+        sc.add_shortcut(Gtk.Shortcut.new(
+            Gtk.ShortcutTrigger.parse_string("<Control>comma"),
+            Gtk.NamedAction.new("mainpage.preferences"),
+        ))
+        sc.add_shortcut(Gtk.Shortcut.new(
+            Gtk.ShortcutTrigger.parse_string("<Control>question"),
+            Gtk.NamedAction.new("mainpage.shortcuts"),
+        ))
+        sc.add_shortcut(Gtk.Shortcut.new(
+            Gtk.ShortcutTrigger.parse_string("<Control>n"),
+            Gtk.NamedAction.new("mainpage.new_workout"),
+        ))
+        sc.add_shortcut(Gtk.Shortcut.new(
+            Gtk.ShortcutTrigger.parse_string("<Alt>1"),
+            Gtk.NamedAction.new("mainpage.switch_workouts"),
+        ))
+        sc.add_shortcut(Gtk.Shortcut.new(
+            Gtk.ShortcutTrigger.parse_string("<Alt>2"),
+            Gtk.NamedAction.new("mainpage.switch_history"),
+        ))
+        self.add_controller(sc)
 
         self._toast_overlay = Adw.ToastOverlay()
         self._toast_overlay.set_child(self._stack)
@@ -92,6 +130,10 @@ class MainPage(Adw.NavigationPage):
         self._toast_overlay.add_toast(Adw.Toast(title=message))
 
     def _build_workouts_view(self) -> Gtk.Widget:
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_vexpand(True)
+
         clamp = Adw.Clamp(maximum_size=760, tightening_threshold=760)
         clamp.set_hexpand(True)
         clamp.set_vexpand(True)
@@ -114,9 +156,10 @@ class MainPage(Adw.NavigationPage):
         self._workouts_stack.add_named(self._list_page, "list")
         self._workouts_stack.add_named(self._empty_page, "empty")
         clamp.set_child(self._workouts_stack)
+        scroll.set_child(clamp)
 
         self.refresh()
-        return clamp
+        return scroll
 
     def refresh(self) -> None:
         self._history_page.refresh()
@@ -306,11 +349,19 @@ class MainPage(Adw.NavigationPage):
             application_icon="io.github.AronCalvert.Workouts",
             developer_name="Aron Calvert",
             version="0.1.0",
-            website="https://github.com/AronCalvert/gnome-workouts",
-            issue_url="https://github.com/AronCalvert/gnome-workouts/issues",
+            website="https://github.com/AronCalvert/workouts",
+            issue_url="https://github.com/AronCalvert/workouts/issues",
             license_type=Gtk.License.GPL_3_0,
         )
         present_dialog(dialog, self)
+
+    def _show_keyboard_shortcuts(self) -> None:
+        ui_file = Path(__file__).parents[2] / "data" / "ui" / "shortcuts.ui"
+        builder = Gtk.Builder.new_from_file(str(ui_file))
+        win = builder.get_object("shortcuts_win")
+        win.set_transient_for(self.get_root())
+        win.set_modal(True)
+        win.present()
 
     def _on_add_workout_clicked(self, _btn: Gtk.Button) -> None:
         dialog = Adw.AlertDialog()
