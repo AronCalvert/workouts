@@ -25,27 +25,27 @@
   <screenshots>
     <screenshot type="default">
       <caption>Browse and manage your workout plans</caption>
-      <image>https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/main-window.png</image>
+      <image width="1030" height="770">https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/workouts-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>View exercises and start a workout</caption>
-      <image>https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/workout-detail.png</image>
+      <image width="1030" height="770">https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/workout-example.png</image>
     </screenshot>
     <screenshot>
       <caption>Log reps and weight for each set</caption>
-      <image>https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/workout-run.png</image>
+      <image width="1030" height="770">https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/rep-exercise.png</image>
     </screenshot>
     <screenshot>
-      <caption>Rest timer between sets</caption>
-      <image>https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/rest-timer.png</image>
+      <caption>Timed hold exercises with a countdown</caption>
+      <image width="1030" height="770">https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/hold-exercise.png</image>
     </screenshot>
     <screenshot>
       <caption>Workout summary on completion</caption>
-      <image>https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/workout-complete.png</image>
+      <image width="1030" height="770">https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/workout-complete.png</image>
     </screenshot>
     <screenshot>
       <caption>Training history by date</caption>
-      <image>https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/history.png</image>
+      <image width="1030" height="770">https://raw.githubusercontent.com/AronCalvert/gnome-workouts/main/data/screenshots/history-tab.png</image>
     </screenshot>
   </screenshots>
   <branding>

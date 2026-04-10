@@ -119,7 +119,7 @@ class HistoryPage(Gtk.Box):
                 time_str = pydt.datetime.fromisoformat(si.started_at).strftime("%H:%M")
             except (ValueError, TypeError):
                 time_str = si.started_at
-            row = Adw.ActionRow(title=si.workout_name, subtitle=time_str)
+            row = Adw.ActionRow(title=si.workout_name, subtitle=time_str, use_markup=False)
             row.set_activatable(True)
             row.connect("activated", lambda _r, s=si: self._open_session_dialog(s))
 

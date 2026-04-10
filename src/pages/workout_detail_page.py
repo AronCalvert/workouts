@@ -159,7 +159,7 @@ class WorkoutDetailPage(Adw.NavigationPage):
         list_box = create_boxed_listbox()
 
         for i, ex in enumerate(plan.exercises):
-            row = Adw.ActionRow(title=ex.name)
+            row = Adw.ActionRow(title=ex.name, use_markup=False)
             sets = plan.sets_by_exercise_id.get(ex.id, [])
 
             row.set_activatable(True)
@@ -571,7 +571,7 @@ class WorkoutDetailPage(Adw.NavigationPage):
                 cb = Gtk.CheckButton()
                 cb.set_active(other.id in current_superset_ids)
                 cb.set_valign(Gtk.Align.CENTER)
-                inner_row = Adw.ActionRow(title=other.name)
+                inner_row = Adw.ActionRow(title=other.name, use_markup=False)
                 inner_row.set_activatable_widget(cb)
                 inner_row.add_suffix(cb)
                 ss_inner_list.append(inner_row)

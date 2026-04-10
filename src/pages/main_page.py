@@ -5,7 +5,7 @@ import gi
 gi.require_version("Adw", "1")
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Adw, GLib, Gio, GObject, Gtk
+from gi.repository import Adw, Gio, GObject, Gtk
 
 from .progress_page import HistoryPage
 from ..ui_utils import (
@@ -57,12 +57,8 @@ class MainPage(Adw.NavigationPage):
         add_btn.connect("clicked", self._on_add_workout_clicked)
         header.pack_start(add_btn)
 
-        unit_section = Gio.Menu()
-        unit_section.append("Kilograms (kg)", "mainpage.weight-unit::kg")
-        unit_section.append("Pounds (lbs)", "mainpage.weight-unit::lbs")
-
         app_menu = Gio.Menu()
-        app_menu.append_section("Weight Unit", unit_section)
+        app_menu.append("Preferences", "mainpage.preferences")
         app_menu.append("About Workouts", "mainpage.about")
 
         menu_btn = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=app_menu)
@@ -70,16 +66,10 @@ class MainPage(Adw.NavigationPage):
         menu_btn.add_css_class("flat")
         header.pack_end(menu_btn)
 
-        current_unit = self._app.prefs.weight_unit
-        weight_unit_action = Gio.SimpleAction.new_stateful(
-            "weight-unit",
-            GLib.VariantType.new("s"),
-            GLib.Variant.new_string(current_unit),
-        )
-        weight_unit_action.connect("activate", self._on_weight_unit_changed)
-
         page_actions = Gio.SimpleActionGroup()
-        page_actions.add_action(weight_unit_action)
+        prefs_action = Gio.SimpleAction.new("preferences", None)
+        prefs_action.connect("activate", lambda *_: self._show_preferences())
+        page_actions.add_action(prefs_action)
         about_action = Gio.SimpleAction.new("about", None)
         about_action.connect("activate", lambda *_: self._show_about())
         page_actions.add_action(about_action)
@@ -137,7 +127,7 @@ class MainPage(Adw.NavigationPage):
         for w in workouts:
             ex_label = f"{w.exercise_count} exercise{'s' if w.exercise_count != 1 else ''}"
             set_label = f"{w.set_count} set{'s' if w.set_count != 1 else ''}"
-            row = Adw.ActionRow(title=w.name, subtitle=f"{ex_label} \u2022 {set_label}")
+            row = Adw.ActionRow(title=w.name, subtitle=f"{ex_label} \u2022 {set_label}", use_markup=False)
             gesture = Gtk.GestureClick()
             gesture.connect(
                 "released",
@@ -284,11 +274,31 @@ class MainPage(Adw.NavigationPage):
         dialog.connect("response", on_response)
         present_dialog(dialog, self)
 
-    def _on_weight_unit_changed(
-        self, action: Gio.SimpleAction, value: GLib.Variant
-    ) -> None:
-        action.set_state(value)
-        self._app.prefs.weight_unit = value.get_string()
+    def _show_preferences(self) -> None:
+        prefs = self._app.prefs
+
+        unit_row = Adw.ComboRow(title="Weight Unit")
+        unit_model = Gtk.StringList()
+        unit_model.append("Kilograms (kg)")
+        unit_model.append("Pounds (lbs)")
+        unit_row.set_model(unit_model)
+        unit_row.set_selected(0 if prefs.weight_unit == "kg" else 1)
+        unit_row.connect(
+            "notify::selected",
+            lambda row, _: setattr(
+                prefs, "weight_unit", "kg" if row.get_selected() == 0 else "lbs"
+            ),
+        )
+
+        group = Adw.PreferencesGroup(title="Units")
+        group.add(unit_row)
+
+        page = Adw.PreferencesPage()
+        page.add(group)
+
+        dialog = Adw.PreferencesDialog()
+        dialog.add(page)
+        present_dialog(dialog, self)
 
     def _show_about(self) -> None:
         dialog = Adw.AboutDialog(
