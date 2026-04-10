@@ -180,6 +180,15 @@ class WorkoutRunPage(Adw.NavigationPage):
         self._set_list = create_boxed_listbox()
         self._active_section.append(self._set_list)
 
+        self._last_label = Gtk.Label()
+        self._last_label.add_css_class("dim-label")
+        self._last_label.add_css_class("caption")
+        self._last_label.set_halign(Gtk.Align.CENTER)
+        self._last_label.set_wrap(True)
+        self._last_label.set_justify(Gtk.Justification.CENTER)
+        self._last_label.set_visible(False)
+        self._active_section.append(self._last_label)
+
         self._hold_timer = CountdownTimer(pill=True, show_reset=False, play_ticks=True)
         set_accessible_label(self._hold_timer, "Hold timer")
         self._hold_timer.connect("finished", self._on_hold_finished)
@@ -333,6 +342,7 @@ class WorkoutRunPage(Adw.NavigationPage):
         if ex.exercise_type == "timed":
             self._set_list.set_visible(False)
             self._active_btns.set_visible(False)
+            self._last_label.set_visible(False)
             self._hold_timer.set_duration(ex.timed_seconds or 0)
             self._hold_timer.set_visible(True)
             self._skip_hold_btn.set_visible(True)
@@ -375,6 +385,13 @@ class WorkoutRunPage(Adw.NavigationPage):
             self._weight_row = weight
             self._set_list.append(reps)
             self._set_list.append(weight)
+
+            prior = self._db.get_last_performed_sets(ex.id, self._session_id)
+            if prior:
+                self._last_label.set_label("Previous:  " + self._format_last_sets(prior))
+                self._last_label.set_visible(True)
+            else:
+                self._last_label.set_visible(False)
 
         notes_row = Adw.EntryRow(title="Notes (optional)")
         self._notes_row = notes_row
@@ -562,6 +579,18 @@ class WorkoutRunPage(Adw.NavigationPage):
 
         dialog.connect("response", on_response)
         present_dialog(dialog, self)
+
+    def _format_last_sets(self, sets: list[tuple[int | None, float | None]]) -> str:
+        parts = []
+        for reps, weight_kg in sets:
+            if reps is None:
+                continue
+            if weight_kg:
+                w = self._prefs.kg_to_display(weight_kg)
+                parts.append(f"{reps} × {w:g} {self._prefs.weight_label}")
+            else:
+                parts.append(f"{reps} reps")
+        return "  ·  ".join(parts)
 
     def _on_key_pressed(
         self, _ctrl: Gtk.EventControllerKey, keyval: int, _keycode: int, _state: Gdk.ModifierType

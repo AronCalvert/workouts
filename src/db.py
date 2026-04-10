@@ -613,6 +613,32 @@ class Database:
                     "UPDATE exercises SET order_index = ? WHERE id = ?", (i, eid)
                 )
 
+    def get_last_performed_sets(
+        self, exercise_id: int, exclude_session_id: int
+    ) -> list[tuple[int | None, float | None]]:
+        """Return (reps, weight_kg) per completed set from the most recent prior session."""
+        row = self._conn.execute(
+            """
+            SELECT ws.id FROM workout_sessions ws
+            JOIN performed_sets ps ON ps.session_id = ws.id
+            WHERE ps.exercise_id = ? AND ps.completed = 1
+              AND ws.finished_at IS NOT NULL AND ws.id != ?
+            ORDER BY ws.started_at DESC LIMIT 1
+            """,
+            (exercise_id, exclude_session_id),
+        ).fetchone()
+        if row is None:
+            return []
+        cur = self._conn.execute(
+            """
+            SELECT reps, weight_kg FROM performed_sets
+            WHERE session_id = ? AND exercise_id = ? AND completed = 1
+            ORDER BY order_index ASC
+            """,
+            (int(row["id"]), exercise_id),
+        )
+        return [(r["reps"], r["weight_kg"]) for r in cur.fetchall()]
+
     def get_sessions_for_month(self, year: int, month: int) -> list[int]:
         """Return day-of-month numbers (1–31) that have at least one finished session."""
         if not (1 <= month <= 12):
