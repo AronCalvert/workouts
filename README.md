@@ -22,6 +22,8 @@ A workout tracker designed for GNOME using PyGObject. Create workout plans, perf
 
 ## Installation
 
+[<img src="https://flathub.org/api/badge?svg&locale=en" width="190" alt="Download on Flathub">](https://flathub.org/apps/io.github.AronCalvert.Workouts)
+
 I want to get this up on Flathub but in the meantime you can build and install it locally using Flatpak:
 
 ```bash
