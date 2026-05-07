@@ -2,15 +2,13 @@
 
 A workout tracker designed for GNOME using PyGObject. Create workout plans, perform them, and review your training history.
 
+## Installation
+
+Now Available on flathub!
+
+[<img src="https://flathub.org/api/badge?svg&locale=en" width="190" alt="Download on Flathub">](https://flathub.org/apps/io.github.AronCalvert.Workouts)
+
 ![Workouts tab](data/screenshots/workouts-tab.png)
-
-## Screenshots
-
-![Workout detail](data/screenshots/workout-example.png)
-![Reps exercise](data/screenshots/rep-exercise.png)
-![Hold exercise](data/screenshots/hold-exercise.png)
-![Workout complete](data/screenshots/workout-complete.png)
-![History](data/screenshots/history-tab.png)
 
 ## features
 
@@ -20,11 +18,15 @@ A workout tracker designed for GNOME using PyGObject. Create workout plans, perf
 - Timed hold exercises with countdown
 - Training history to track yur progress
 
-## Installation
+## Screenshots
 
-Now Available on flathub!
+![Workout detail](data/screenshots/workout-example.png)
+![Reps exercise](data/screenshots/rep-exercise.png)
+![Hold exercise](data/screenshots/hold-exercise.png)
+![Workout complete](data/screenshots/workout-complete.png)
+![History](data/screenshots/history-tab.png)
 
-[<img src="https://flathub.org/api/badge?svg&locale=en" width="190" alt="Download on Flathub">](https://flathub.org/apps/io.github.AronCalvert.Workouts)
+
 
 ## License
 
