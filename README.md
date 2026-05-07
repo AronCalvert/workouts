@@ -8,7 +8,7 @@ Now Available on flathub!
 
 [<img src="https://flathub.org/api/badge?svg&locale=en" width="190" alt="Download on Flathub">](https://flathub.org/apps/io.github.AronCalvert.Workouts)
 
-![Workouts tab](data/screenshots/workouts-tab.png)
+
 
 ## features
 
@@ -20,6 +20,7 @@ Now Available on flathub!
 
 ## Screenshots
 
+![Workouts tab](data/screenshots/workouts-tab.png)
 ![Workout detail](data/screenshots/workout-example.png)
 ![Reps exercise](data/screenshots/rep-exercise.png)
 ![Hold exercise](data/screenshots/hold-exercise.png)
